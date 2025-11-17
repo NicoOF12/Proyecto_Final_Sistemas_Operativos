@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entorno virtual
+venv/
+env/
+ENV/
+.venv/
+
+# Config VSCode
+.vscode/
+
+# Archivos temporales
+*.log
+*.sqlite3
+
+# Uvicorn reload cache
+*.pid
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
