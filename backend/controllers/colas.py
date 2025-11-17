@@ -19,18 +19,16 @@ def transformar_y_encolar(proceso_dict: Dict[str, Any]) -> Proceso:
     """Convierte un diccionario en una instancia de Proceso y la agrega a la cola de listos."""
     p = Proceso(
         pid=proceso_dict["PID"],
-        estado="LISTO",
-        contador=0,
-        tiempo_llegada=proceso_dict["tiempo_llegada"],
-        rafaga_cpu=proceso_dict["rafaga_CPU"],
-        prioridad=1,
-        registros=[],
-        memoria=None,
-        lista_archivos_abiertos=[],
-        usuario=proceso_dict["usuario"]
+        tiempo_llegada=proceso_dict.get("tiempo_llegada", 0),
+        rafaga_cpu=proceso_dict.get("rafaga_cpu") or proceso_dict.get("rafaga_CPU", 1),
+        usuario=proceso_dict.get("usuario", "desconocido"),
+        prioridad=proceso_dict.get("prioridad", 1)
     )
+
+    p.cambiar_estado("Listo")
     cola_listos.put(p)
     return p
+
 
 # Inicializamos los procesos de prueba
 for pd in procesos_test1:
@@ -59,10 +57,18 @@ def listar_procesos() -> List[Dict[str, Any]]:
 @router.post("/agregar")
 def agregar_proceso(proceso: Dict[str, Any]) -> Dict[str, Any]:
     """Agrega un nuevo proceso a la cola de listos."""
-    if not all(k in proceso for k in ["PID", "tiempo_llegada", "rafaga_CPU", "usuario"]):
+    if not (
+        "pid" in proceso or "PID" in proceso
+    ) or not (
+        "tiempo_llegada" in proceso or "tiempoLlegada" in proceso
+    ) or not (
+        "rafaga_cpu" in proceso or "rafaga_CPU" in proceso
+    ) or not (
+        "usuario" in proceso
+    ):
         raise HTTPException(status_code=400, detail="Faltan datos obligatorios del proceso")
     p = transformar_y_encolar(proceso)
-    return {"PID": p.pcb.pid, "Estado": p.pcb.estado}
+    return {"PID": p.pcb.pid, "Estado": p.pcb.estado, "Tiempo Llegada": p.pcb.tiempo_llegada, "Ráfaga CPU": p.pcb.rafaga_cpu}
 
 
 @router.post("/bloquear")
@@ -90,8 +96,8 @@ def desbloquear_proceso() -> Dict[str, Any]:
 @router.get("/mostrar")
 def mostrar_colas() -> Dict[str, List[int]]:
     """Devuelve los PID de cada cola."""
-    listos_pids = [proc.pcb.PID for proc in list(cola_listos.queue)]
-    bloqueados_pids = [proc.pcb.PID for proc in list(cola_bloqueados.queue)]
+    listos_pids = [proc.pcb.pid for proc in list(cola_listos.queue)]
+    bloqueados_pids = [proc.pcb.pid for proc in list(cola_bloqueados.queue)]
     return {
         "cola_listos": listos_pids,
         "cola_bloqueados": bloqueados_pids
