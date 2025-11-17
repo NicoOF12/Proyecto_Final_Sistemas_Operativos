@@ -11,8 +11,8 @@ cola_bloqueados: Queue[Proceso] = Queue()
 
 # --- Datos de prueba ---
 procesos_test1 = [
-    {"PID": 1, "tiempo_llegada": 0, "rafaga_CPU": 5, "usuario": "usuario1"},
-    {"PID": 2, "tiempo_llegada": 0, "rafaga_CPU": 5, "usuario": "usuario2"},
+    {"PID": 1, "tiempo_llegada": 0, "rafaga_cpu": 5, "usuario": "usuario1"},
+    {"PID": 2, "tiempo_llegada": 0, "rafaga_cpu": 5, "usuario": "usuario2"},
 ]
 
 def transformar_y_encolar(proceso_dict: Dict[str, Any]) -> Proceso:
@@ -20,13 +20,12 @@ def transformar_y_encolar(proceso_dict: Dict[str, Any]) -> Proceso:
     p = Proceso(
         pid=proceso_dict["PID"],
         estado="LISTO",
-        contador=0,
         tiempo_llegada=proceso_dict["tiempo_llegada"],
-        rafaga_cpu=proceso_dict["rafaga_CPU"],
+        rafaga_cpu=proceso_dict["rafaga_cpu"],
         prioridad=1,
         registros=[],
         memoria=None,
-        lista_archivos_abiertos=[],
+        archivos_abiertos=[],
         usuario=proceso_dict["usuario"]
     )
     cola_listos.put(p)
@@ -45,12 +44,12 @@ def listar_procesos() -> List[Dict[str, Any]]:
     salida = []
     for proc in list(cola_listos.queue):
         salida.append({
-            "PID": proc.pcb.PID,
+            "PID": proc.pcb.pid,
             "Estado": proc.pcb.estado
         })
     for proc in list(cola_bloqueados.queue):
         salida.append({
-            "PID": proc.pcb.PID,
+            "PID": proc.pcb.pid,
             "Estado": proc.pcb.estado
         })
     return salida
@@ -59,7 +58,15 @@ def listar_procesos() -> List[Dict[str, Any]]:
 @router.post("/agregar")
 def agregar_proceso(proceso: Dict[str, Any]) -> Dict[str, Any]:
     """Agrega un nuevo proceso a la cola de listos."""
-    if not all(k in proceso for k in ["PID", "tiempo_llegada", "rafaga_CPU", "usuario"]):
+    if not (
+        "pid" in proceso or "PID" in proceso
+    ) or not (
+        "tiempo_llegada" in proceso or "tiempoLlegada" in proceso
+    ) or not (
+        "rafaga_cpu" in proceso or "rafaga_CPU" in proceso
+    ) or not (
+        "usuario" in proceso
+    ):
         raise HTTPException(status_code=400, detail="Faltan datos obligatorios del proceso")
     p = transformar_y_encolar(proceso)
     return {"PID": p.pcb.pid, "Estado": p.pcb.estado}
@@ -90,8 +97,8 @@ def desbloquear_proceso() -> Dict[str, Any]:
 @router.get("/mostrar")
 def mostrar_colas() -> Dict[str, List[int]]:
     """Devuelve los PID de cada cola."""
-    listos_pids = [proc.pcb.PID for proc in list(cola_listos.queue)]
-    bloqueados_pids = [proc.pcb.PID for proc in list(cola_bloqueados.queue)]
+    listos_pids = [proc.pcb.pid for proc in list(cola_listos.queue)]
+    bloqueados_pids = [proc.pcb.pid for proc in list(cola_bloqueados.queue)]
     return {
         "cola_listos": listos_pids,
         "cola_bloqueados": bloqueados_pids
