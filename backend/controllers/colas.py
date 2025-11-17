@@ -12,7 +12,7 @@ cola_bloqueados: Queue[Proceso] = Queue()
 # --- Datos de prueba ---
 procesos_test1 = [
     {"PID": 1, "tiempo_llegada": 0, "rafaga_cpu": 5, "usuario": "usuario1"},
-    {"PID": 2, "tiempo_llegada": 0, "rafaga_cpu": 5, "usuario": "usuario2"},
+    {"PID": 2, "tiempo_llegada": 0, "rafaga_cpu": 1, "usuario": "usuario2"},
 ]
 
 def transformar_y_encolar(proceso_dict: Dict[str, Any]) -> Proceso:

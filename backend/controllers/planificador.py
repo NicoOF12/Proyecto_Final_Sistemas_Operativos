@@ -15,7 +15,9 @@ class Planificador:
         """
 
         # Ordenar por tiempo de llegada
-        procesos = sorted(procesos, key=lambda p: p.pcb.tiempo_llegada)
+        procesos = sorted(procesos, key=lambda p: (p.pcb.tiempo_llegada, p.pcb.pid)
+)
+
 
         tiempo_actual = 0
         resultados = []
@@ -100,7 +102,8 @@ class Planificador:
         """
 
         # Ordenar por ráfaga CPU ascendente
-        procesos = sorted(procesos, key=lambda p: p.pcb.rafaga_cpu)
+        procesos = sorted(procesos, key=lambda p: (p.pcb.rafaga_cpu, p.pcb.pid)
+        )
 
         tiempo_actual = 0
         resultados = []
