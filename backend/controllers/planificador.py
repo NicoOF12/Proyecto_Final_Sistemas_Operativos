@@ -110,13 +110,20 @@ class Planificador:
 
         for proceso in procesos:
             pcb = proceso.pcb
-
+            
+            #Si el proceso llega después del tiempo actual, el CPU queda inactivo, se avanza el reloj
             if tiempo_actual < pcb.tiempo_llegada:
                 tiempo_actual = pcb.tiempo_llegada
 
             pcb.tiempo_espera = tiempo_actual - pcb.tiempo_llegada
+
+            # Ejecutar por toda su ráfaga
             tiempo_actual += pcb.rafaga_original
+
+            # Tiempo de finalización
             pcb.tiempo_finalizacion = tiempo_actual
+
+            # Turnaround
             pcb.tiempo_retorno = tiempo_actual - pcb.tiempo_llegada
 
             resultados.append(pcb.to_dict())
