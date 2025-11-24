@@ -28,8 +28,11 @@ def transformar_y_encolar(proceso_dict: Dict[str, Any]) -> Proceso:
         archivos_abiertos=[],
         usuario=proceso_dict["usuario"]
     )
+
+    p.cambiar_estado("Listo")
     cola_listos.put(p)
     return p
+
 
 # Inicializamos los procesos de prueba
 for pd in procesos_test1:
@@ -69,7 +72,7 @@ def agregar_proceso(proceso: Dict[str, Any]) -> Dict[str, Any]:
     ):
         raise HTTPException(status_code=400, detail="Faltan datos obligatorios del proceso")
     p = transformar_y_encolar(proceso)
-    return {"PID": p.pcb.pid, "Estado": p.pcb.estado}
+    return {"PID": p.pcb.pid, "Estado": p.pcb.estado, "Tiempo Llegada": p.pcb.tiempo_llegada, "Ráfaga CPU": p.pcb.rafaga_cpu}
 
 
 @router.post("/bloquear")
