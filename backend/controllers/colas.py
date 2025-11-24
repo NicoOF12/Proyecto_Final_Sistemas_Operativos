@@ -11,18 +11,22 @@ cola_bloqueados: Queue[Proceso] = Queue()
 
 # --- Datos de prueba ---
 procesos_test1 = [
-    {"PID": 1, "tiempo_llegada": 0, "rafaga_CPU": 5, "usuario": "usuario1"},
-    {"PID": 2, "tiempo_llegada": 0, "rafaga_CPU": 5, "usuario": "usuario2"},
+    {"PID": 1, "tiempo_llegada": 0, "rafaga_cpu": 5, "usuario": "usuario1"},
+    {"PID": 2, "tiempo_llegada": 0, "rafaga_cpu": 1, "usuario": "usuario2"},
 ]
 
 def transformar_y_encolar(proceso_dict: Dict[str, Any]) -> Proceso:
     """Convierte un diccionario en una instancia de Proceso y la agrega a la cola de listos."""
     p = Proceso(
         pid=proceso_dict["PID"],
-        tiempo_llegada=proceso_dict.get("tiempo_llegada", 0),
-        rafaga_cpu=proceso_dict.get("rafaga_cpu") or proceso_dict.get("rafaga_CPU", 1),
-        usuario=proceso_dict.get("usuario", "desconocido"),
-        prioridad=proceso_dict.get("prioridad", 1)
+        estado="LISTO",
+        tiempo_llegada=proceso_dict["tiempo_llegada"],
+        rafaga_cpu=proceso_dict["rafaga_cpu"],
+        prioridad=1,
+        registros=[],
+        memoria=None,
+        archivos_abiertos=[],
+        usuario=proceso_dict["usuario"]
     )
 
     p.cambiar_estado("Listo")
@@ -43,12 +47,12 @@ def listar_procesos() -> List[Dict[str, Any]]:
     salida = []
     for proc in list(cola_listos.queue):
         salida.append({
-            "PID": proc.pcb.PID,
+            "PID": proc.pcb.pid,
             "Estado": proc.pcb.estado
         })
     for proc in list(cola_bloqueados.queue):
         salida.append({
-            "PID": proc.pcb.PID,
+            "PID": proc.pcb.pid,
             "Estado": proc.pcb.estado
         })
     return salida

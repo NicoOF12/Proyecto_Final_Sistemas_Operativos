@@ -15,7 +15,9 @@ class Planificador:
         """
 
         # Ordenar por tiempo de llegada
-        procesos = sorted(procesos, key=lambda p: p.pcb.tiempo_llegada)
+        procesos = sorted(procesos, key=lambda p: (p.pcb.tiempo_llegada, p.pcb.pid)
+)
+
 
         tiempo_actual = 0
         resultados = []
@@ -23,21 +25,20 @@ class Planificador:
         for proceso in procesos:
             pcb = proceso.pcb
 
-            # Reset por si el proceso ya participó en otra simulación
-            pcb.tiempo_restante = pcb.rafaga_original
-            pcb.tiempo_espera = 0
-            pcb.tiempo_inicio = None
-
+            # Si el proceso llega después, esperamos
             if tiempo_actual < pcb.tiempo_llegada:
                 tiempo_actual = pcb.tiempo_llegada
 
+            # Tiempo de espera antes de ejecutarse
             pcb.tiempo_espera = tiempo_actual - pcb.tiempo_llegada
 
-            pcb.tiempo_inicio = tiempo_actual
-
+            # Ejecutar por toda su ráfaga
             tiempo_actual += pcb.rafaga_original
 
+            # Tiempo de finalización
             pcb.tiempo_finalizacion = tiempo_actual
+
+            # Turnaround
             pcb.tiempo_retorno = pcb.tiempo_finalizacion - pcb.tiempo_llegada
 
             resultados.append(pcb.to_dict())
@@ -58,9 +59,6 @@ class Planificador:
         4. Repetir hasta que todos finalicen.
         """
 
-        for p in procesos:
-            p.pcb.tiempo_restante = p.pcb.rafaga_original
-
         cola = deque(procesos)
         tiempo_actual = 0
         resultados = []
@@ -69,18 +67,13 @@ class Planificador:
             proceso = cola.popleft()
             pcb = proceso.pcb
 
-            # Si llega más tarde que el tiempo actual
+            # Si el proceso llega más tarde, avanzamos el tiempo
             if tiempo_actual < pcb.tiempo_llegada:
                 tiempo_actual = pcb.tiempo_llegada
 
-            # Tiempo ejecutado = min(quantum, tiempo restante)
+            # Tiempo ejecutado = min(quantum, ráfaga restante)
             ejecucion = min(quantum, pcb.tiempo_restante)
 
-            # Registrar inicio si es la primera vez
-            if pcb.tiempo_inicio is None:
-                pcb.tiempo_inicio = tiempo_actual
-
-            # Ejecutar
             pcb.tiempo_restante -= ejecucion
             tiempo_actual += ejecucion
 
@@ -88,13 +81,9 @@ class Planificador:
             if pcb.tiempo_restante == 0:
                 pcb.tiempo_finalizacion = tiempo_actual
                 pcb.tiempo_retorno = pcb.tiempo_finalizacion - pcb.tiempo_llegada
-
-                # Tiempo de espera = turnaround - rafaga_original
-                pcb.tiempo_espera = pcb.tiempo_retorno - pcb.rafaga_original
-
                 resultados.append(pcb.to_dict())
             else:
-                # Todavía le falta: regresa a la cola
+                # Regresa a cola para seguir en otro turno
                 cola.append(proceso)
 
         return resultados
@@ -113,28 +102,28 @@ class Planificador:
         """
 
         # Ordenar por ráfaga CPU ascendente
-        procesos = sorted(procesos, key=lambda p: p.pcb.rafaga_original)
+        procesos = sorted(procesos, key=lambda p: (p.pcb.rafaga_cpu, p.pcb.pid)
+        )
 
         tiempo_actual = 0
         resultados = []
 
         for proceso in procesos:
             pcb = proceso.pcb
-
-            # Reset por si ya fue ejecutado antes
-            pcb.tiempo_restante = pcb.rafaga_original
-            pcb.tiempo_espera = 0
-            pcb.tiempo_inicio = None
-
+            
+            #Si el proceso llega después del tiempo actual, el CPU queda inactivo, se avanza el reloj
             if tiempo_actual < pcb.tiempo_llegada:
                 tiempo_actual = pcb.tiempo_llegada
 
             pcb.tiempo_espera = tiempo_actual - pcb.tiempo_llegada
-            pcb.tiempo_inicio = tiempo_actual
 
+            # Ejecutar por toda su ráfaga
             tiempo_actual += pcb.rafaga_original
 
+            # Tiempo de finalización
             pcb.tiempo_finalizacion = tiempo_actual
+
+            # Turnaround
             pcb.tiempo_retorno = tiempo_actual - pcb.tiempo_llegada
 
             resultados.append(pcb.to_dict())

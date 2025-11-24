@@ -3,6 +3,7 @@ from controllers.colas import router as colas_router
 from controllers.colas import cola_listos
 from controllers.planificador import Planificador
 from models.process import Proceso
+from controllers.filesystem import router as filesystem_router
 
 app = FastAPI(
     title="Simulador de Planificación de Procesos",
@@ -12,6 +13,9 @@ app = FastAPI(
 
 # --- Registrar rutas ---
 app.include_router(colas_router)
+
+
+app.include_router(filesystem_router)
 
 @app.get("/")
 def home():
