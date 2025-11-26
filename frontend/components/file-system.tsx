@@ -1,157 +1,318 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Folder, File, FolderPlus, FilePlus, Trash2, User, Shield, Terminal } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Folder,
+  File,
+  FolderPlus,
+  FilePlus,
+  Trash2,
+  User,
+  Shield,
+  Terminal,
+  RefreshCw,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-const API_BASE = "http://localhost:8000"
+const API_BASE = "http://localhost:8000";
+
+interface FileItem {
+  nombre: string;
+  tipo: "archivo" | "directorio";
+  propietario: string;
+  permisos: string;
+  tamanio?: number;
+}
 
 export default function FileSystem() {
-  const [currentPath, setCurrentPath] = useState("/")
-  const [currentUser, setCurrentUser] = useState("root")
-  const [files, setFiles] = useState<any[]>([])
-  const [users, setUsers] = useState<string[]>([])
-  const { toast } = useToast()
+  const [currentPath, setCurrentPath] = useState("/");
+  const [currentUser, setCurrentUser] = useState("root");
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [users, setUsers] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   // Form states
-  const [newDir, setNewDir] = useState({ name: "", permisos: "755" })
-  const [newFile, setNewFile] = useState({ name: "", contenido: "", permisos: "644" })
-  const [selectedFile, setSelectedFile] = useState<string>("")
+  const [newDir, setNewDir] = useState({ name: "", permisos: "755" });
+  const [newFile, setNewFile] = useState({
+    name: "",
+    contenido: "",
+    permisos: "644",
+  });
 
   useEffect(() => {
-    fetchPwd()
-    fetchUsers()
-    fetchFiles()
-  }, [])
+    initializeData();
+  }, []);
+
+  const initializeData = async () => {
+    await fetchCurrentUser();
+    await fetchUsers();
+    await fetchPwd();
+    await fetchFiles();
+  };
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/fs/current-user`);
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentUser(data.username);
+      }
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+    }
+  };
 
   const fetchPwd = async () => {
     try {
-      const response = await fetch(`${API_BASE}/fs/pwd`)
-      const data = await response.json()
-      setCurrentPath(data.pwd)
+      const response = await fetch(`${API_BASE}/fs/pwd`);
+      const data = await response.json();
+      setCurrentPath(data.pwd);
     } catch (error) {
-      console.error("Error fetching pwd:", error)
+      console.error("Error fetching pwd:", error);
     }
-  }
+  };
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${API_BASE}/fs/users`)
-      const data = await response.json()
-      setUsers(data.users)
+      const response = await fetch(`${API_BASE}/fs/users`);
+      const data = await response.json();
+      setUsers(data.users);
     } catch (error) {
-      console.error("Error fetching users:", error)
+      console.error("Error fetching users:", error);
     }
-  }
+  };
 
   const fetchFiles = async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/fs/ls?ruta=.`)
-      const data = await response.json()
-      setFiles(data.contenido || [])
+      const response = await fetch(
+        `${API_BASE}/fs/ls?ruta=${encodeURIComponent(currentPath)}`
+      );
+      const data = await response.json();
+
+      if (data.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+        setFiles([]);
+      } else {
+        if (data.contenido) {
+          setFiles(data.contenido);
+        } else {
+          setFiles([]);
+        }
+      }
     } catch (error) {
-      console.error("Error fetching files:", error)
+      console.error("Error fetching files:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los archivos",
+        variant: "destructive",
+      });
+      setFiles([]);
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleSwitchUser = async (username: string) => {
     try {
       const response = await fetch(`${API_BASE}/fs/su?username=${username}`, {
         method: "POST",
-      })
-      if (response.ok) {
-        setCurrentUser(username)
+      });
+      const data = await response.json();
+
+      if (data.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+      } else {
+        setCurrentUser(username);
         toast({
           title: "Usuario cambiado",
           description: `Sesión iniciada como ${username}`,
-        })
-        await fetchFiles()
+        });
+        await fetchFiles();
       }
     } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo cambiar de usuario",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleCreateDir = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+
+    if (!newDir.name.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre del directorio no puede estar vacío",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_BASE}/fs/mkdir?ruta=${newDir.name}&permisos=${newDir.permisos}`, {
-        method: "POST",
-      })
-      if (response.ok) {
+      const response = await fetch(
+        `${API_BASE}/fs/mkdir?ruta=${encodeURIComponent(
+          newDir.name
+        )}&permisos=${newDir.permisos}`,
+        { method: "POST" }
+      );
+      const data = await response.json();
+
+      if (data.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+      } else {
         toast({
           title: "Directorio creado",
           description: `${newDir.name} creado exitosamente`,
-        })
-        setNewDir({ name: "", permisos: "755" })
-        await fetchFiles()
+        });
+        setNewDir({ name: "", permisos: "755" });
+        await fetchFiles();
       }
     } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo crear el directorio",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleCreateFile = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+
+    if (!newFile.name.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre del archivo no puede estar vacío",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const response = await fetch(
-        `${API_BASE}/fs/create?ruta=${newFile.name}&contenido=${encodeURIComponent(newFile.contenido)}&permisos=${newFile.permisos}`,
-        { method: "POST" },
-      )
-      if (response.ok) {
+        `${API_BASE}/fs/create?ruta=${encodeURIComponent(
+          newFile.name
+        )}&contenido=${encodeURIComponent(newFile.contenido)}&permisos=${
+          newFile.permisos
+        }`,
+        { method: "POST" }
+      );
+      const data = await response.json();
+
+      if (data.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+      } else {
         toast({
           title: "Archivo creado",
           description: `${newFile.name} creado exitosamente`,
-        })
-        setNewFile({ name: "", contenido: "", permisos: "644" })
-        await fetchFiles()
+        });
+        setNewFile({ name: "", contenido: "", permisos: "644" });
+        await fetchFiles();
       }
     } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo crear el archivo",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
-  const handleDeleteItem = async (path: string) => {
+  const handleDeleteItem = async (nombre: string) => {
     try {
-      const response = await fetch(`${API_BASE}/fs/rm?ruta=${path}`, {
-        method: "POST",
-      })
-      if (response.ok) {
+      const response = await fetch(
+        `${API_BASE}/fs/rm?ruta=${encodeURIComponent(nombre)}`,
+        {
+          method: "POST",
+        }
+      );
+      const data = await response.json();
+
+      if (data.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+      } else {
         toast({
           title: "Eliminado",
           description: "Elemento eliminado exitosamente",
-        })
-        await fetchFiles()
+        });
+        await fetchFiles();
       }
     } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo eliminar",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
+
+  const handleChangeDirectory = async (dirName: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE}/fs/cd?ruta=${encodeURIComponent(dirName)}`,
+        {
+          method: "POST",
+        }
+      );
+      const data = await response.json();
+
+      if (data.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+      } else {
+        await fetchPwd();
+        await fetchFiles();
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cambiar de directorio",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="grid lg:grid-cols-3 gap-6">
@@ -172,7 +333,9 @@ export default function FileSystem() {
                 {currentUser}
               </Badge>
               <span className="text-muted-foreground">@</span>
-              <span className="font-mono text-sm text-primary">{currentPath}</span>
+              <span className="font-mono text-sm text-primary">
+                {currentPath}
+              </span>
             </div>
 
             <Separator />
@@ -197,18 +360,52 @@ export default function FileSystem() {
         {/* Files List */}
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle>Archivos y Directorios</CardTitle>
-            <CardDescription>Contenido del directorio actual</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Archivos y Directorios</CardTitle>
+                <CardDescription>
+                  Contenido del directorio actual
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={fetchFiles}
+                disabled={isLoading}
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
+              {/* Botón para ir al directorio padre */}
+              {currentPath !== "/" && (
+                <div
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => handleChangeDirectory("..")}
+                >
+                  <Folder className="w-5 h-5 text-primary" />
+                  <p className="font-medium">..</p>
+                </div>
+              )}
+
               {files.length > 0 ? (
                 files.map((item, index) => (
                   <div
                     key={index}
                     className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
+                    <div
+                      className="flex items-center gap-3 flex-1 cursor-pointer"
+                      onClick={() => {
+                        if (item.tipo === "directorio") {
+                          handleChangeDirectory(item.nombre);
+                        }
+                      }}
+                    >
                       {item.tipo === "directorio" ? (
                         <Folder className="w-5 h-5 text-primary" />
                       ) : (
@@ -222,10 +419,20 @@ export default function FileSystem() {
                           <span>•</span>
                           <User className="w-3 h-3" />
                           {item.propietario}
+                          {item.tamanio !== undefined && (
+                            <>
+                              <span>•</span>
+                              <span>{item.tamanio} bytes</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteItem(item.nombre)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteItem(item.nombre)}
+                    >
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </div>
@@ -259,7 +466,9 @@ export default function FileSystem() {
                   id="dirname"
                   placeholder="mi-directorio"
                   value={newDir.name}
-                  onChange={(e) => setNewDir({ ...newDir, name: e.target.value })}
+                  onChange={(e) =>
+                    setNewDir({ ...newDir, name: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -269,7 +478,9 @@ export default function FileSystem() {
                   id="dirpermisos"
                   placeholder="755"
                   value={newDir.permisos}
-                  onChange={(e) => setNewDir({ ...newDir, permisos: e.target.value })}
+                  onChange={(e) =>
+                    setNewDir({ ...newDir, permisos: e.target.value })
+                  }
                 />
               </div>
               <Button type="submit" className="w-full">
@@ -296,7 +507,9 @@ export default function FileSystem() {
                   id="filename"
                   placeholder="archivo.txt"
                   value={newFile.name}
-                  onChange={(e) => setNewFile({ ...newFile, name: e.target.value })}
+                  onChange={(e) =>
+                    setNewFile({ ...newFile, name: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -306,7 +519,9 @@ export default function FileSystem() {
                   id="filecontent"
                   placeholder="Contenido del archivo..."
                   value={newFile.contenido}
-                  onChange={(e) => setNewFile({ ...newFile, contenido: e.target.value })}
+                  onChange={(e) =>
+                    setNewFile({ ...newFile, contenido: e.target.value })
+                  }
                   rows={4}
                 />
               </div>
@@ -316,7 +531,9 @@ export default function FileSystem() {
                   id="filepermisos"
                   placeholder="644"
                   value={newFile.permisos}
-                  onChange={(e) => setNewFile({ ...newFile, permisos: e.target.value })}
+                  onChange={(e) =>
+                    setNewFile({ ...newFile, permisos: e.target.value })
+                  }
                 />
               </div>
               <Button type="submit" className="w-full">
@@ -328,5 +545,5 @@ export default function FileSystem() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
