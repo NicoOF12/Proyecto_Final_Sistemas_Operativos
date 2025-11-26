@@ -55,12 +55,15 @@ class SistemaArchivos:
             "usuario2": Usuario("usuario2", 1002, "usuarios")
         }
 
-        # root
-        self.root = Directorio("/", self.usuarios["root"], permisos="755", parent=None)
-        # crear /home y dirs de usuarios
-        home = self.root.agregar_directorio("home", self.usuarios["root"], permisos="755")
-        u1 = home.agregar_directorio("usuario1", self.usuarios["usuario1"], permisos="750")
-        u2 = home.agregar_directorio("usuario2", self.usuarios["usuario2"], permisos="750")
+        # root con permisos 777 (todos pueden escribir)
+        self.root = Directorio("/", self.usuarios["root"], permisos="777", parent=None)
+        
+        # crear /home con permisos 777 (todos pueden crear directorios)
+        home = self.root.agregar_directorio("home", self.usuarios["root"], permisos="777")
+        
+        # Directorios de usuarios con permisos 755 (propietario: rwx, grupo: rx, otros: rx)
+        u1 = home.agregar_directorio("usuario1", self.usuarios["usuario1"], permisos="755")
+        u2 = home.agregar_directorio("usuario2", self.usuarios["usuario2"], permisos="755")
 
         # estado actual
         self.usuario_actual: Usuario = self.usuarios["root"]
@@ -172,9 +175,15 @@ class SistemaArchivos:
         parent, nombre = self._resolve_parent_and_name(ruta)
         if parent is None or nombre is None:
             return {"error": "ruta inválida"}
+        
+        # Verificar si ya existe
+        if nombre in parent.subdirectorios:
+            return {"error": f"El directorio '{nombre}' ya existe"}
+        
         # escribir en parent: permiso w
         if not can_access(self.usuario_actual, parent.propietario, parent.propietario.grupo, parent.permisos, 'w'):
-            return {"error": "permiso denegado para crear en ese directorio"}
+            return {"error": f"permiso denegado para crear en {self.pwd()}. Usuario: {self.usuario_actual.nombre}, Propietario: {parent.propietario.nombre}, Permisos: {parent.permisos}"}
+        
         parent.agregar_directorio(nombre, self.usuario_actual, permisos=permisos)
         return {"ok": f"Directorio '{nombre}' creado", "permisos": permisos}
 
@@ -194,9 +203,15 @@ class SistemaArchivos:
         parent, nombre = self._resolve_parent_and_name(ruta)
         if parent is None or nombre is None:
             return {"error": "ruta inválida"}
+        
+        # Verificar si ya existe
+        if nombre in parent.archivos:
+            return {"error": f"El archivo '{nombre}' ya existe"}
+        
         # permiso de escritura en parent
         if not can_access(self.usuario_actual, parent.propietario, parent.propietario.grupo, parent.permisos, 'w'):
-            return {"error": "permiso denegado para crear archivo"}
+            return {"error": f"permiso denegado para crear archivo en {self.pwd()}"}
+        
         archivo = Archivo(nombre, self.usuario_actual, permisos=permisos)
         if contenido:
             archivo.escribir(contenido)
@@ -292,7 +307,7 @@ class SistemaArchivos:
         if nombre in parent.subdirectorios:
             d = parent.subdirectorios[nombre]
             if self.usuario_actual.uid != 0:
-                return {"error": "solo root puede chown en directorios (implementacion) "}
+                return {"error": "solo root puede chown en directorios"}
             d.propietario = nuevo_user
             return {"ok": f"propietario del directorio '{nombre}' ahora {nuevo}"}
         return {"error": "no existe"}
