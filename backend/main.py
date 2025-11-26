@@ -17,10 +17,10 @@ app.include_router(colas_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # Permite TODOS los orígenes
-    allow_credentials=True,
-    allow_methods=["*"],          # Permite TODOS los métodos: GET, POST, PUT, DELETE...
-    allow_headers=["*"],          # Permite TODOS los encabezados
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(filesystem_router)
